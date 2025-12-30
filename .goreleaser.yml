@@ -49,6 +49,19 @@ checksum:
   name_template: 'checksums.txt'
   algorithm: sha256
 
+brews:
+  - name: stacktodate
+    repository:
+      owner: stacktodate
+      name: homebrew-stacktodate
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://stacktodate.club"
+    description: "CLI tool for Stack To Date - track your tech stack lifecycle"
+    license: MIT
+    skip_upload: false
+    test: |
+      system "#{bin}/stacktodate --version"
+
 changelog:
   sort: asc
   use: github

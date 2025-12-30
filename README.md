@@ -52,7 +52,16 @@ This CLI tool integrates with the Stack To Date platform by automatically detect
 
 ## Installation
 
-### Download Pre-built Binaries (Recommended)
+### Homebrew (macOS/Linux)
+
+The easiest way to install on macOS or Linux:
+
+```bash
+brew tap stacktodate/homebrew-stacktodate
+brew install stacktodate
+```
+
+### Download Pre-built Binaries
 
 Download the latest release for your platform from the [Releases page](https://github.com/stacktodate/stacktodate-cli/releases).
 
