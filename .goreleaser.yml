@@ -91,13 +91,13 @@ release:
     ### Quick Install (macOS/Linux)
     ```bash
     # macOS Intel
-    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_darwin_amd64.tar.gz | tar xz
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_darwin_amd64.tar.gz | tar xz
 
     # macOS Apple Silicon
-    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_darwin_arm64.tar.gz | tar xz
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_darwin_arm64.tar.gz | tar xz
 
     # Linux x86_64
-    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_linux_amd64.tar.gz | tar xz
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_linux_amd64.tar.gz | tar xz
     ```
 
     **Full Changelog**: https://github.com/stacktodate/stacktodate-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
