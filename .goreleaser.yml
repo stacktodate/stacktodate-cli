@@ -1,0 +1,106 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: stacktodate
+    main: ./main.go
+    binary: stacktodate
+
+    ldflags:
+      - -s -w
+      - -X github.com/stacktodate/stacktodate-cli/internal/version.Version={{.Version}}
+      - -X github.com/stacktodate/stacktodate-cli/internal/version.Commit={{.Commit}}
+      - -X github.com/stacktodate/stacktodate-cli/internal/version.Date={{.Date}}
+      - -X github.com/stacktodate/stacktodate-cli/internal/version.BuiltBy=goreleaser
+
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: stacktodate-archives
+    format_overrides:
+      - goos: windows
+        format: zip
+
+    name_template: >-
+      stacktodate_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+    files:
+      - LICENSE*
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - 'typo'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Enhancements'
+      regexp: '^.*?enhance(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: stacktodate
+    name: stacktodate-cli
+
+  draft: true
+
+  prerelease: auto
+
+  name_template: "Release {{.Tag}}"
+
+  footer: |
+    ## Installation
+
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Quick Install (macOS/Linux)
+    ```bash
+    # macOS Intel
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_darwin_amd64.tar.gz | tar xz
+
+    # macOS Apple Silicon
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_darwin_arm64.tar.gz | tar xz
+
+    # Linux x86_64
+    curl -L https://github.com/stacktodate/stacktodate-cli/releases/download/{{ .Tag }}/stacktodate_{{ .Version }}_linux_amd64.tar.gz | tar xz
+    ```
+
+    **Full Changelog**: https://github.com/stacktodate/stacktodate-cli/compare/{{ .PreviousTag }}...{{ .Tag }}

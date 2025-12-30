@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  web:
+    image: node:18-alpine
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"

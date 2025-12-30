@@ -1,0 +1,9 @@
+uuid: 2b1e2400-44fa-4ac8-8b82-366253ccaf43
+name: lalala
+stack:
+    rails:
+        version: "7.1"
+        source: Gemfile
+    ruby:
+        version: "3.2"
+        source: .ruby-version

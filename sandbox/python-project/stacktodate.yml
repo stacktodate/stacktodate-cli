@@ -1,0 +1,6 @@
+uuid: py-uuid
+name: Python App
+stack:
+    python:
+        version: "3.11"
+        source: .python-version

@@ -1,0 +1,6 @@
+uuid: node-uuid
+name: Node App
+stack:
+    nodejs:
+        version: "18"
+        source: package.json

@@ -1,0 +1,168 @@
+package cmd
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+)
+
+var (
+	configFile string
+)
+
+type Component struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type PushRequest struct {
+	Components []Component `json:"components"`
+}
+
+type PushResponse struct {
+	Success   bool   `json:"success"`
+	Message   string `json:"message"`
+	TechStack struct {
+		ID         string        `json:"id"`
+		Name       string        `json:"name"`
+		Components []Component   `json:"components"`
+	} `json:"tech_stack"`
+}
+
+var pushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "Push tech stack components to the API",
+	Long:  `Push the components defined in stacktodate.yml to the remote API`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Determine config file
+		configPath := configFile
+		if configPath == "" {
+			configPath = "stacktodate.yml"
+		}
+
+		// Read stacktodate.yml
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading config file %s: %v\n", configPath, err)
+			os.Exit(1)
+		}
+
+		// Parse YAML
+		var config Config
+		if err := yaml.Unmarshal(content, &config); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", configPath, err)
+			os.Exit(1)
+		}
+
+		// Validate config
+		if config.UUID == "" {
+			fmt.Fprintf(os.Stderr, "Error: uuid not found in %s\n", configPath)
+			os.Exit(1)
+		}
+
+		// Get token from environment
+		token := os.Getenv("STD_TOKEN")
+		if token == "" {
+			fmt.Fprintf(os.Stderr, "Error: STD_TOKEN environment variable not set\n")
+			os.Exit(1)
+		}
+
+		// Get API URL from environment or use default
+		apiURL := os.Getenv("STD_API_URL")
+		if apiURL == "" {
+			apiURL = "https://stacktodate.club"
+		}
+
+		// Convert stack to components
+		components := convertStackToComponents(config.Stack)
+
+		// Create request
+		request := PushRequest{
+			Components: components,
+		}
+
+		// Make API call
+		if err := pushToAPI(apiURL, config.UUID, token, request); err != nil {
+			fmt.Fprintf(os.Stderr, "Error pushing to API: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("✓ Successfully pushed %d components\n", len(components))
+	},
+}
+
+func convertStackToComponents(stack map[string]StackEntry) []Component {
+	var components []Component
+
+	for name, entry := range stack {
+		components = append(components, Component{
+			Name:    name,
+			Version: entry.Version,
+		})
+	}
+
+	return components
+}
+
+func pushToAPI(apiURL, techStackID, token string, request PushRequest) error {
+	// Build URL
+	url := fmt.Sprintf("%s/api/tech_stacks/%s/components", apiURL, techStackID)
+
+	// Marshal request to JSON
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Make request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Handle error responses
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var response PushResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("API returned success=false: %s", response.Message)
+	}
+
+	return nil
+}
+
+func init() {
+	rootCmd.AddCommand(pushCmd)
+	pushCmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to stacktodate.yml config file (default: stacktodate.yml)")
+}
