@@ -1,4 +1,4 @@
-# stacktodate
+# StackToDate
 
 Official command-line interface for [Stack To Date](https://stacktodate.club/) — a service that helps development teams track technology lifecycle statuses and plan for end-of-life (EOL) upgrades.
 
