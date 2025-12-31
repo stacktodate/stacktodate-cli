@@ -149,6 +149,48 @@ Options:
 - `--skip-autodetect`: Keep existing stack without detection
 - `--no-interactive`: Use first candidate without prompting
 
+### Check technology versions
+
+Verify that your `stacktodate.yml` matches the currently detected versions in your project. Perfect for CI/CD pipelines:
+
+```bash
+stacktodate check
+```
+
+This command:
+- Reads your `stacktodate.yml` file
+- Detects current versions in your project
+- Compares them and reports any differences
+- Exits with code 0 if all versions match, 1 if there are differences
+
+Options:
+- `--config, -c`: Path to stacktodate.yml file (default: `stacktodate.yml`)
+- `--format, -f`: Output format: `text` (default) or `json` for CI/CD integration
+
+**Output Example (text format):**
+```
+Technology Check Results
+========================
+
+MATCH (3):
+  ruby:        3.2.0 == 3.2.0   ✓
+  nodejs:      18.0.0 == 18.0.0 ✓
+  python:      3.11 == 3.11    ✓
+
+MISMATCH (1):
+  rails:       7.0.0 != 7.1.0   (config has 7.1.0)
+
+Summary: 3 match, 1 mismatch, 0 missing
+Exit code: 1 (has differences)
+```
+
+**CI/CD Integration (JSON format):**
+```bash
+stacktodate check --format json
+```
+
+Returns structured JSON output suitable for parsing in CI/CD pipelines.
+
 ### Push to Stack To Date
 
 Upload your detected tech stack to the Stack To Date platform for monitoring and lifecycle tracking:

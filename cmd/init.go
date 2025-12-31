@@ -1,33 +1,23 @@
 package cmd
 
 import (
-"bufio"
-"fmt"
-"os"
-"strconv"
-"strings"
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
-"github.com/spf13/cobra"
-"gopkg.in/yaml.v3"
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var (
-uuid           string
-name           string
-skipAutodetect bool
-noInteractive  bool
+	uuid           string
+	name           string
+	skipAutodetect bool
+	noInteractive  bool
 )
-
-type StackEntry struct {
-	Version string `yaml:"version"`
-	Source  string `yaml:"source"`
-}
-
-type Config struct {
-	UUID  string                `yaml:"uuid"`
-	Name  string                `yaml:"name"`
-	Stack map[string]StackEntry `yaml:"stack,omitempty"`
-}
 
 var initCmd = &cobra.Command{
 	Use:   "init [path]",
@@ -41,32 +31,22 @@ var initCmd = &cobra.Command{
 			targetDir = args[0]
 		}
 
-		// Change to target directory for detection
-		originalDir, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		if targetDir != "." {
-			if err := os.Chdir(targetDir); err != nil {
-				fmt.Fprintf(os.Stderr, "Error changing to directory %s: %v\n", targetDir, err)
-				os.Exit(1)
-			}
-			defer os.Chdir(originalDir)
-		}
-
 		fmt.Printf("Initializing project in: %s\n", targetDir)
 
 		reader := bufio.NewReader(os.Stdin)
 
-		// Detect project information
-		var info DetectedInfo
-		var detectedTechs map[string]StackEntry
+		// Detect project information in target directory
+		var detectedTechs map[string]helpers.StackEntry
 		if !skipAutodetect {
-			info = DetectProjectInfo()
-			PrintDetectedInfo(info)
-			detectedTechs = selectCandidates(reader, info)
+			err := helpers.WithWorkingDir(targetDir, func() error {
+				info := DetectProjectInfo()
+				PrintDetectedInfo(info)
+				detectedTechs = selectCandidates(reader, info)
+				return nil
+			})
+			if err != nil {
+				helpers.ExitOnError(err, "failed to detect project")
+			}
 		}
 
 		// Get UUID
@@ -84,7 +64,7 @@ var initCmd = &cobra.Command{
 		}
 
 		// Create config
-		config := Config{
+		config := helpers.Config{
 			UUID:  uuid,
 			Name:  name,
 			Stack: detectedTechs,
@@ -93,15 +73,13 @@ var initCmd = &cobra.Command{
 		// Marshal to YAML
 		data, err := yaml.Marshal(&config)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating configuration: %v\n", err)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to create configuration")
 		}
 
 		// Write to file
 		err = os.WriteFile("stacktodate.yml", data, 0644)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing stacktodate.yml: %v\n", err)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to write stacktodate.yml")
 		}
 
 		fmt.Println("\nProject initialized successfully!")
@@ -118,8 +96,8 @@ var initCmd = &cobra.Command{
 }
 
 // selectCandidates allows user to select from detected candidates
-func selectCandidates(reader *bufio.Reader, info DetectedInfo) map[string]StackEntry {
-	selected := make(map[string]StackEntry)
+func selectCandidates(reader *bufio.Reader, info DetectedInfo) map[string]helpers.StackEntry {
+	selected := make(map[string]helpers.StackEntry)
 
 	// Ruby
 	if len(info.Ruby) > 0 {
@@ -165,10 +143,10 @@ func selectCandidates(reader *bufio.Reader, info DetectedInfo) map[string]StackE
 }
 
 // selectFromCandidates lets user choose one candidate or none
-func selectFromCandidates(reader *bufio.Reader, tech string, candidates []Candidate) StackEntry {
+func selectFromCandidates(reader *bufio.Reader, tech string, candidates []Candidate) helpers.StackEntry {
 	if noInteractive {
 		// In non-interactive mode, use the first candidate
-		return StackEntry{
+		return helpers.StackEntry{
 			Version: candidates[0].Value,
 			Source:  candidates[0].Source,
 		}
@@ -186,7 +164,7 @@ func selectFromCandidates(reader *bufio.Reader, tech string, candidates []Candid
 		choice := strings.TrimSpace(input)
 
 		if choice == "0" || choice == "" {
-			return StackEntry{}
+			return helpers.StackEntry{}
 		}
 
 		idx, err := strconv.Atoi(choice)
@@ -195,7 +173,7 @@ func selectFromCandidates(reader *bufio.Reader, tech string, candidates []Candid
 			continue
 		}
 
-		return StackEntry{
+		return helpers.StackEntry{
 			Version: candidates[idx-1].Value,
 			Source:  candidates[idx-1].Source,
 		}
