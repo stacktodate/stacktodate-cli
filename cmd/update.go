@@ -1,13 +1,13 @@
 package cmd
 
 import (
-    "bufio"
-    "fmt"
-    "os"
-    "path/filepath"
+	"bufio"
+	"fmt"
+	"os"
 
-    "github.com/spf13/cobra"
-    "gopkg.in/yaml.v3"
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // updateCmd updates an existing stacktodate.yml file's stack using autodetect
@@ -17,63 +17,44 @@ var updateCmd = &cobra.Command{
     Long:  "Run autodetect and update the provided stacktodate.yml's stack, preserving uuid and name.",
     Args:  cobra.NoArgs,
     Run: func(cmd *cobra.Command, args []string) {
-        // Read config path from flag or default
-        targetFile := updateConfigFile
-        if targetFile == "" {
-            targetFile = "stacktodate.yml"
-        }
-
-        // Resolve absolute path for robust read/write regardless of chdir
-        absTargetFile, err := filepath.Abs(targetFile)
+        // Load existing config without requiring UUID
+        config, err := helpers.LoadConfig(updateConfigFile)
         if err != nil {
-            fmt.Fprintf(os.Stderr, "Error resolving absolute path for %s: %v\n", targetFile, err)
-            os.Exit(1)
+            helpers.ExitOnError(err, "failed to load config")
         }
 
-        // Read existing config
-        content, err := os.ReadFile(absTargetFile)
+        // Resolve absolute path
+        absTargetFile, err := helpers.ResolveAbsPath(updateConfigFile)
         if err != nil {
-            fmt.Fprintf(os.Stderr, "Error reading config file %s: %v\n", targetFile, err)
-            os.Exit(1)
-        }
-
-        var config Config
-        if err := yaml.Unmarshal(content, &config); err != nil {
-            fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", targetFile, err)
-            os.Exit(1)
-        }
-
-        // Change to directory of the target file to run detection there
-        originalDir, err := os.Getwd()
-        if err != nil {
-            fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
-            os.Exit(1)
-        }
-
-        targetDir := filepath.Dir(absTargetFile)
-        if targetDir == "" {
-            targetDir = "."
-        }
-
-        if targetDir != "." {
-            if err := os.Chdir(targetDir); err != nil {
-                fmt.Fprintf(os.Stderr, "Error changing to directory %s: %v\n", targetDir, err)
-                os.Exit(1)
+            if updateConfigFile == "" {
+                absTargetFile, _ = helpers.ResolveAbsPath("stacktodate.yml")
+            } else {
+                helpers.ExitOnError(err, "failed to resolve config path")
             }
-            defer os.Chdir(originalDir)
         }
 
-        fmt.Printf("Updating stack in: %s\n", targetFile)
+        // Get target directory
+        targetDir, err := helpers.GetConfigDir(absTargetFile)
+        if err != nil {
+            helpers.ExitOnError(err, "failed to get config directory")
+        }
 
-        // Detect project information
+        fmt.Printf("Updating stack in: %s\n", updateConfigFile)
+
+        // Detect project information in target directory
         reader := bufio.NewReader(os.Stdin)
 
-        var info DetectedInfo
-        var detectedTechs map[string]StackEntry
+        var detectedTechs map[string]helpers.StackEntry
         if !skipAutodetect {
-            info = DetectProjectInfo()
-            PrintDetectedInfo(info)
-            detectedTechs = selectCandidates(reader, info)
+            err = helpers.WithWorkingDir(targetDir, func() error {
+                info := DetectProjectInfo()
+                PrintDetectedInfo(info)
+                detectedTechs = selectCandidates(reader, info)
+                return nil
+            })
+            if err != nil {
+                helpers.ExitOnError(err, "failed to detect project")
+            }
         } else {
             // If autodetect is skipped, keep existing stack
             detectedTechs = config.Stack
@@ -85,14 +66,12 @@ var updateCmd = &cobra.Command{
         // Marshal to YAML
         data, err := yaml.Marshal(&config)
         if err != nil {
-            fmt.Fprintf(os.Stderr, "Error creating configuration: %v\n", err)
-            os.Exit(1)
+            helpers.ExitOnError(err, "failed to create configuration")
         }
 
         // Write back to the original absolute file path
         if err := os.WriteFile(absTargetFile, data, 0644); err != nil {
-            fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", targetFile, err)
-            os.Exit(1)
+            helpers.ExitOnError(err, "failed to write config")
         }
 
         fmt.Println("\nStack updated successfully!")

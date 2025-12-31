@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/spf13/cobra"
 )
 
@@ -19,25 +19,18 @@ var autodetectCmd = &cobra.Command{
 			targetDir = args[0]
 		}
 
-		// Change to target directory for detection
-		originalDir, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
-			os.Exit(1)
-		}
-
-		if targetDir != "." {
-			if err := os.Chdir(targetDir); err != nil {
-				fmt.Fprintf(os.Stderr, "Error changing to directory %s: %v\n", targetDir, err)
-				os.Exit(1)
-			}
-			defer os.Chdir(originalDir)
-		}
-
 		fmt.Printf("Scanning directory: %s\n", targetDir)
 
-		// Detect project information
-		info := DetectProjectInfo()
-		PrintDetectedInfo(info)
+		// Execute detection in target directory
+		err := helpers.WithWorkingDir(targetDir, func() error {
+			// Detect project information
+			info := DetectProjectInfo()
+			PrintDetectedInfo(info)
+			return nil
+		})
+
+		if err != nil {
+			helpers.ExitOnError(err, "failed to scan directory")
+		}
 	},
 }
