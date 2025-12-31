@@ -1,5 +1,7 @@
 # StackToDate
 
+![Tech Stack Badge](https://stacktodate.club/tech_stacks/1fe0b376-1df7-4848-bf2d-525acdce6b82/badge)
+
 Official command-line interface for [Stack To Date](https://stacktodate.club/) — a service that helps development teams track technology lifecycle statuses and plan for end-of-life (EOL) upgrades.
 
 ## About Stack To Date
