@@ -51,6 +51,7 @@ checksum:
 
 brews:
   - name: stacktodate
+    directory: Formula
     repository:
       owner: stacktodate
       name: homebrew-stacktodate
