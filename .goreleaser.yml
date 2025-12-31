@@ -54,7 +54,7 @@ brews:
     repository:
       owner: stacktodate
       name: homebrew-stacktodate
-      token: "{{ .Env.GITHUB_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://stacktodate.club"
     description: "CLI tool for Stack To Date - track your tech stack lifecycle"
     license: MIT
