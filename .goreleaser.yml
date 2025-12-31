@@ -91,7 +91,7 @@ release:
     owner: stacktodate
     name: stacktodate-cli
 
-  draft: true
+  draft: false
 
   prerelease: auto
 
