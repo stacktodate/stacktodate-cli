@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/lib/cache"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -74,10 +75,7 @@ var pushCmd = &cobra.Command{
 		}
 
 		// Get API URL from environment or use default
-		apiURL := os.Getenv("STD_API_URL")
-		if apiURL == "" {
-			apiURL = "https://stacktodate.club"
-		}
+		apiURL := cache.GetAPIURL()
 
 		// Convert stack to components
 		components := convertStackToComponents(config.Stack)

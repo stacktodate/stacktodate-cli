@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"regexp"
 	"strings"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/lib/cache"
 	"github.com/stacktodate/stacktodate-cli/cmd/lib/detectors"
 )
 
@@ -21,14 +19,6 @@ type DetectedInfo struct {
 	Go     []detectors.Candidate
 	Python []detectors.Candidate
 	Docker []detectors.Candidate
-}
-
-type EOLProduct struct {
-	Cycle   string      `json:"cycle"`
-	Release string      `json:"release"`
-	LTS     interface{} `json:"lts"`     // Can be bool or string (date)
-	Support interface{} `json:"support"` // Can be bool or string (date)
-	EOL     interface{} `json:"eol"`     // Can be bool or string (date)
 }
 
 // cleanVersion removes version operators and extracts the core version
@@ -64,7 +54,7 @@ func cleanCandidateVersions(candidates []detectors.Candidate) []detectors.Candid
 	return candidates
 }
 
-// truncateCandidateVersions truncates all candidate versions to match endoflife.date API cycles
+// truncateCandidateVersions truncates all candidate versions to match stacktodate.club API cycles
 func truncateCandidateVersions(candidates []detectors.Candidate, product string) []detectors.Candidate {
 	for i := range candidates {
 		candidates[i].Value = truncateVersionToEOLCycle(product, candidates[i].Value)
@@ -145,7 +135,7 @@ func DetectProjectInfo() DetectedInfo {
 		}
 	}
 
-	// Truncate versions to match endoflife.date API cycles
+	// Truncate versions to match stacktodate.club API cycles
 	info.Ruby = truncateCandidateVersions(info.Ruby, "ruby")
 	info.Rails = truncateCandidateVersions(info.Rails, "rails")
 	info.Node = truncateCandidateVersions(info.Node, "nodejs")
@@ -155,7 +145,23 @@ func DetectProjectInfo() DetectedInfo {
 	return info
 }
 
-// truncateVersionToEOLCycle truncates a version to match the format used by endoflife.date API
+// mapProductNameToCacheKey maps internal product names to stacktodate.club API keys
+func mapProductNameToCacheKey(product string) string {
+	mapping := map[string]string{
+		"ruby":   "ruby",
+		"rails":  "rails",
+		"nodejs": "nodejs",
+		"go":     "go",
+		"python": "python",
+	}
+
+	if key, exists := mapping[product]; exists {
+		return key
+	}
+	return product
+}
+
+// truncateVersionToEOLCycle truncates a version to match the format used by stacktodate.club API
 // It tries to find the best matching cycle by progressively truncating the version
 // Examples: 3.11.0 -> 3.11, 18.0.0 -> 18, 7.1.0 -> 7.1
 func truncateVersionToEOLCycle(product, version string) string {
@@ -163,31 +169,25 @@ func truncateVersionToEOLCycle(product, version string) string {
 		return version
 	}
 
-	url := fmt.Sprintf("https://endoflife.date/api/%s.json", product)
-	resp, err := http.Get(url)
+	// Get products from cache (auto-fetches if needed or stale)
+	products, err := cache.GetProducts()
 	if err != nil {
-		return version
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
+		// Graceful fallback: return original version if cache fetch fails
 		return version
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return version
-	}
-
-	var products []EOLProduct
-	if err := json.Unmarshal(body, &products); err != nil {
+	// Map product name to cache key
+	cacheKey := mapProductNameToCacheKey(product)
+	cachedProduct := cache.GetProductByKey(cacheKey, products)
+	if cachedProduct == nil {
+		// Product not found in cache, return original version
 		return version
 	}
 
 	// Build a set of available cycles for quick lookup
 	cycles := make(map[string]bool)
-	for _, p := range products {
-		cycles[p.Cycle] = true
+	for _, release := range cachedProduct.Releases {
+		cycles[release.ReleaseCycle] = true
 	}
 
 	// If exact match exists, return as-is
@@ -197,7 +197,7 @@ func truncateVersionToEOLCycle(product, version string) string {
 
 	// Split version into parts
 	parts := strings.Split(version, ".")
-	
+
 	// Try major.minor (e.g., 3.11 from 3.11.0)
 	if len(parts) >= 2 {
 		majorMinor := parts[0] + "." + parts[1]
@@ -205,7 +205,7 @@ func truncateVersionToEOLCycle(product, version string) string {
 			return majorMinor
 		}
 	}
-	
+
 	// Try major only (e.g., 18 from 18.0.0)
 	if len(parts) >= 1 {
 		major := parts[0]
@@ -223,40 +223,30 @@ func getEOLStatus(product, version string) string {
 		return ""
 	}
 
-	url := fmt.Sprintf("https://endoflife.date/api/%s.json", product)
-	resp, err := http.Get(url)
+	// Get products from cache (auto-fetches if needed or stale)
+	products, err := cache.GetProducts()
 	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
+		// Graceful fallback: return empty string if cache fetch fails
 		return ""
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	// Map product name to cache key
+	cacheKey := mapProductNameToCacheKey(product)
+	cachedProduct := cache.GetProductByKey(cacheKey, products)
+	if cachedProduct == nil {
+		// Product not found in cache, return empty string
 		return ""
 	}
 
-	var products []EOLProduct
-	if err := json.Unmarshal(body, &products); err != nil {
-		return ""
-	}
-
-	// Find the matching cycle
-	for _, p := range products {
-		if p.Cycle == version {
-			// Check if EOL is false (bool) or empty
-			if eolBool, ok := p.EOL.(bool); ok && !eolBool {
+	// Find the matching release cycle
+	for _, release := range cachedProduct.Releases {
+		if release.ReleaseCycle == version {
+			// Check if EOL is empty (still supported)
+			if release.EOL == "" {
 				return " (supported)"
 			}
-			if eolStr, ok := p.EOL.(string); ok {
-				if eolStr == "" || eolStr == "false" {
-					return " (supported)"
-				}
-				return fmt.Sprintf(" (EOL: %s)", eolStr)
-			}
+			// Return EOL date
+			return fmt.Sprintf(" (EOL: %s)", release.EOL)
 		}
 	}
 
