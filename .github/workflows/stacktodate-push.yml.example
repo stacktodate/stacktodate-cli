@@ -1,0 +1,34 @@
+name: Stack To Date Push
+
+on:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  stacktodate-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install stacktodate
+        run: |
+          go install github.com/stacktodate/stacktodate-cli@latest
+
+      - name: Check technology versions
+        run: stacktodate check --format json
+
+      - name: Push tech stack to Stack To Date
+        run: stacktodate push
+        env:
+          STD_TOKEN: ${{ secrets.STD_TOKEN }}
+          STD_API_URL: ${{ secrets.STD_API_URL || 'https://stacktodate.club' }}
+
+      - name: Success notification
+        if: success()
+        run: echo "✓ Tech stack synchronized with Stack To Date"

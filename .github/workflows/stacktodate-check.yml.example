@@ -1,0 +1,34 @@
+name: Stack To Date Check
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  stacktodate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install stacktodate
+        run: |
+          go install github.com/stacktodate/stacktodate-cli@latest
+
+      - name: Check technology versions
+        run: stacktodate check --format json
+        continue-on-error: false
+
+      - name: Report results
+        if: failure()
+        run: |
+          echo "⚠️ Technology versions in stacktodate.yml don't match detected versions"
+          echo "Run 'stacktodate update' to sync your configuration"
+          exit 1

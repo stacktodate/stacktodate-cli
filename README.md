@@ -229,6 +229,109 @@ To find your API token, log in to [Stack To Date](https://stacktodate.club/) and
 stacktodate version
 ```
 
+## CI/CD Integration
+
+### GitHub Actions Workflow
+
+Integrate stacktodate into your GitHub Actions CI/CD pipeline to automatically validate that your declared tech stack matches your actual project configuration.
+
+#### Check Version Validation
+
+Add this workflow to validate tech stack versions on every push and pull request:
+
+```yaml
+# .github/workflows/stacktodate-check.yml
+name: Stack To Date Check
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  stacktodate-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install stacktodate
+        run: go install github.com/stacktodate/stacktodate-cli@latest
+
+      - name: Check technology versions
+        run: stacktodate check --format json
+
+      - name: Report results
+        if: failure()
+        run: |
+          echo "⚠️ Technology versions in stacktodate.yml don't match detected versions"
+          echo "Run 'stacktodate update' to sync your configuration"
+          exit 1
+```
+
+#### Push to Stack To Date
+
+Add this workflow to automatically sync your tech stack to the Stack To Date platform on successful builds:
+
+```yaml
+# .github/workflows/stacktodate-push.yml
+name: Stack To Date Push
+
+on:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  stacktodate-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install stacktodate
+        run: go install github.com/stacktodate/stacktodate-cli@latest
+
+      - name: Check technology versions
+        run: stacktodate check --format json
+
+      - name: Push tech stack to Stack To Date
+        run: stacktodate push
+        env:
+          STD_TOKEN: ${{ secrets.STD_TOKEN }}
+          STD_API_URL: ${{ secrets.STD_API_URL || 'https://stacktodate.club' }}
+
+      - name: Success notification
+        if: success()
+        run: echo "✓ Tech stack synchronized with Stack To Date"
+```
+
+#### Setup GitHub Secrets
+
+For the push workflow, configure these secrets in your repository settings:
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add `STD_TOKEN`: Your Stack To Date API token (get from account settings at https://stacktodate.club)
+3. (Optional) Add `STD_API_URL`: If using a custom Stack To Date instance
+
+#### Example Workflows
+
+Example workflow files are included in the repository:
+- `.github/workflows/stacktodate-check.yml.example` - Validation workflow
+- `.github/workflows/stacktodate-push.yml.example` - Sync workflow
+
+You can copy these as templates to get started quickly.
+
 ## Configuration File
 
 The `stacktodate.yml` file stores your project's tech stack information:
