@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/stacktodate/stacktodate-cli/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -24,8 +24,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		helpers.ExitWithError(1, "%v", err)
 	}
 }
 

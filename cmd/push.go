@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/stacktodate/stacktodate-cli/cmd/lib/cache"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -41,37 +40,16 @@ var pushCmd = &cobra.Command{
 	Short: "Push tech stack components to the API",
 	Long:  `Push the components defined in stacktodate.yml to the remote API`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Determine config file
-		configPath := configFile
-		if configPath == "" {
-			configPath = "stacktodate.yml"
-		}
-
-		// Read stacktodate.yml
-		content, err := os.ReadFile(configPath)
+		// Load config with UUID validation
+		config, err := helpers.LoadConfigWithDefaults(configFile, true)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading config file %s: %v\n", configPath, err)
-			os.Exit(1)
-		}
-
-		// Parse YAML
-		var config Config
-		if err := yaml.Unmarshal(content, &config); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", configPath, err)
-			os.Exit(1)
-		}
-
-		// Validate config
-		if config.UUID == "" {
-			fmt.Fprintf(os.Stderr, "Error: uuid not found in %s\n", configPath)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to load config")
 		}
 
 		// Get token from environment
-		token := os.Getenv("STD_TOKEN")
-		if token == "" {
-			fmt.Fprintf(os.Stderr, "Error: STD_TOKEN environment variable not set\n")
-			os.Exit(1)
+		token, err := helpers.GetEnvRequired("STD_TOKEN")
+		if err != nil {
+			helpers.ExitOnError(err, "")
 		}
 
 		// Get API URL from environment or use default
@@ -87,15 +65,14 @@ var pushCmd = &cobra.Command{
 
 		// Make API call
 		if err := pushToAPI(apiURL, config.UUID, token, request); err != nil {
-			fmt.Fprintf(os.Stderr, "Error pushing to API: %v\n", err)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to push to API")
 		}
 
 		fmt.Printf("✓ Successfully pushed %d components\n", len(components))
 	},
 }
 
-func convertStackToComponents(stack map[string]StackEntry) []Component {
+func convertStackToComponents(stack map[string]helpers.StackEntry) []Component {
 	var components []Component
 
 	for name, entry := range stack {

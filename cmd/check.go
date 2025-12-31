@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 type CheckResult struct {
@@ -45,56 +44,38 @@ var checkCmd = &cobra.Command{
 	Short: "Check if detected versions match stacktodate.yml",
 	Long:  `Verify that the versions in stacktodate.yml match the currently detected versions in your project. Useful for CI/CD pipelines.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Determine config file
-		configPath := checkConfigFile
-		if configPath == "" {
-			configPath = "stacktodate.yml"
-		}
-
-		// Resolve absolute path
-		absConfigPath, err := filepath.Abs(configPath)
+		// Load config without requiring UUID
+		config, err := helpers.LoadConfig(checkConfigFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error resolving config path: %v\n", err)
-			os.Exit(2)
+			helpers.ExitWithError(2, "failed to load config: %v", err)
 		}
 
-		// Read config file
-		content, err := os.ReadFile(absConfigPath)
+		// Resolve absolute path for directory management
+		absConfigPath, err := helpers.ResolveAbsPath(checkConfigFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading config file %s: %v\n", configPath, err)
-			os.Exit(2)
-		}
-
-		// Parse YAML
-		var config Config
-		if err := yaml.Unmarshal(content, &config); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", configPath, err)
-			os.Exit(2)
-		}
-
-		// Change to config directory for detection
-		originalDir, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
-			os.Exit(2)
-		}
-
-		configDir := filepath.Dir(absConfigPath)
-		if configDir == "" {
-			configDir = "."
-		}
-
-		if configDir != "." {
-			if err := os.Chdir(configDir); err != nil {
-				fmt.Fprintf(os.Stderr, "Error changing to directory: %v\n", err)
-				os.Exit(2)
+			if checkConfigFile == "" {
+				absConfigPath, _ = helpers.ResolveAbsPath("stacktodate.yml")
+			} else {
+				helpers.ExitOnError(err, "failed to resolve config path")
 			}
-			defer os.Chdir(originalDir)
 		}
 
-		// Detect current versions
-		detectedInfo := DetectProjectInfo()
-		detectedStack := normalizeDetectedToStack(detectedInfo)
+		// Get config directory
+		configDir, err := helpers.GetConfigDir(absConfigPath)
+		if err != nil {
+			helpers.ExitOnError(err, "failed to get config directory")
+		}
+
+		// Detect current versions in config directory
+		var detectedStack map[string]helpers.StackEntry
+		err = helpers.WithWorkingDir(configDir, func() error {
+			detectedInfo := DetectProjectInfo()
+			detectedStack = normalizeDetectedToStack(detectedInfo)
+			return nil
+		})
+		if err != nil {
+			helpers.ExitOnError(err, "failed to detect versions")
+		}
 
 		// Compare stacks
 		result := compareStacks(config.Stack, detectedStack)
@@ -113,39 +94,39 @@ var checkCmd = &cobra.Command{
 	},
 }
 
-func normalizeDetectedToStack(info DetectedInfo) map[string]StackEntry {
-	normalized := make(map[string]StackEntry)
+func normalizeDetectedToStack(info DetectedInfo) map[string]helpers.StackEntry {
+	normalized := make(map[string]helpers.StackEntry)
 
 	if len(info.Ruby) > 0 {
-		normalized["ruby"] = StackEntry{
+		normalized["ruby"] = helpers.StackEntry{
 			Version: info.Ruby[0].Value,
 			Source:  info.Ruby[0].Source,
 		}
 	}
 
 	if len(info.Rails) > 0 {
-		normalized["rails"] = StackEntry{
+		normalized["rails"] = helpers.StackEntry{
 			Version: info.Rails[0].Value,
 			Source:  info.Rails[0].Source,
 		}
 	}
 
 	if len(info.Node) > 0 {
-		normalized["nodejs"] = StackEntry{
+		normalized["nodejs"] = helpers.StackEntry{
 			Version: info.Node[0].Value,
 			Source:  info.Node[0].Source,
 		}
 	}
 
 	if len(info.Go) > 0 {
-		normalized["go"] = StackEntry{
+		normalized["go"] = helpers.StackEntry{
 			Version: info.Go[0].Value,
 			Source:  info.Go[0].Source,
 		}
 	}
 
 	if len(info.Python) > 0 {
-		normalized["python"] = StackEntry{
+		normalized["python"] = helpers.StackEntry{
 			Version: info.Python[0].Value,
 			Source:  info.Python[0].Source,
 		}
@@ -154,7 +135,7 @@ func normalizeDetectedToStack(info DetectedInfo) map[string]StackEntry {
 	return normalized
 }
 
-func compareStacks(configStack, detectedStack map[string]StackEntry) CheckResult {
+func compareStacks(configStack, detectedStack map[string]helpers.StackEntry) CheckResult {
 	result := CheckResult{
 		Results: CheckResults{
 			Matched:       []ComparisonEntry{},

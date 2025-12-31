@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/stacktodate/stacktodate-cli/cmd/lib/cache"
 	"github.com/spf13/cobra"
 )
@@ -20,15 +21,13 @@ once every 24 hours. You can use this command to manually refresh the cache at a
 		fmt.Fprintf(os.Stderr, "Fetching product catalog from stacktodate.club...\n")
 
 		if err := cache.FetchAndCache(); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ Error: %v\n", err)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to fetch catalog")
 		}
 
 		// Load and display info about cached products
 		products, err := cache.LoadCache()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "✗ Error loading cached products: %v\n", err)
-			os.Exit(1)
+			helpers.ExitOnError(err, "failed to load cached products")
 		}
 
 		cachePath, _ := cache.GetCachePath()

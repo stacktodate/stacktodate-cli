@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"testing"
+
+	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 )
 
 func TestNormalizeDetectedToStack(t *testing.T) {
@@ -55,12 +57,12 @@ func TestNormalizeDetectedToStack(t *testing.T) {
 }
 
 func TestCompareStacks_AllMatch(t *testing.T) {
-	configStack := map[string]StackEntry{
+	configStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"nodejs": {Version: "18.0.0", Source: ".nvmrc"},
 	}
 
-	detectedStack := map[string]StackEntry{
+	detectedStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"nodejs": {Version: "18.0.0", Source: ".nvmrc"},
 	}
@@ -81,12 +83,12 @@ func TestCompareStacks_AllMatch(t *testing.T) {
 }
 
 func TestCompareStacks_WithMismatch(t *testing.T) {
-	configStack := map[string]StackEntry{
+	configStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"rails":  {Version: "7.1.0", Source: "Gemfile"},
 	}
 
-	detectedStack := map[string]StackEntry{
+	detectedStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"rails":  {Version: "7.0.0", Source: "Gemfile"},
 	}
@@ -107,12 +109,12 @@ func TestCompareStacks_WithMismatch(t *testing.T) {
 }
 
 func TestCompareStacks_MissingConfig(t *testing.T) {
-	configStack := map[string]StackEntry{
+	configStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"nodejs": {Version: "18.0.0", Source: ".nvmrc"},
 	}
 
-	detectedStack := map[string]StackEntry{
+	detectedStack := map[string]helpers.StackEntry{
 		"ruby": {Version: "3.2.0", Source: ".ruby-version"},
 	}
 
@@ -132,14 +134,14 @@ func TestCompareStacks_MissingConfig(t *testing.T) {
 }
 
 func TestCompareStacks_Complex(t *testing.T) {
-	configStack := map[string]StackEntry{
+	configStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"rails":  {Version: "7.1.0", Source: "Gemfile"},
 		"nodejs": {Version: "18.0.0", Source: ".nvmrc"},
 		"python": {Version: "3.10", Source: ".python-version"},
 	}
 
-	detectedStack := map[string]StackEntry{
+	detectedStack := map[string]helpers.StackEntry{
 		"ruby":   {Version: "3.2.0", Source: ".ruby-version"},
 		"rails":  {Version: "7.0.0", Source: "Gemfile"},
 		"nodejs": {Version: "18.0.0", Source: ".nvmrc"},
@@ -166,8 +168,8 @@ func TestCompareStacks_Complex(t *testing.T) {
 }
 
 func TestCompareStacks_Empty(t *testing.T) {
-	configStack := map[string]StackEntry{}
-	detectedStack := map[string]StackEntry{}
+	configStack := map[string]helpers.StackEntry{}
+	detectedStack := map[string]helpers.StackEntry{}
 
 	result := compareStacks(configStack, detectedStack)
 
