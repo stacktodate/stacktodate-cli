@@ -8,18 +8,11 @@ jobs:
   sync-stacktodate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.25'
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build stacktodate
-        run: go build -o stacktodate
+      - name: Download stacktodate binary
+        run: |
+          VERSION="latest"
+          curl -sL https://github.com/stacktodate/stacktodate-cli/releases/download/${VERSION}/stacktodate-linux-amd64 -o stacktodate
+          chmod +x stacktodate
 
       - name: Check stacktodate config
         run: ./stacktodate check
