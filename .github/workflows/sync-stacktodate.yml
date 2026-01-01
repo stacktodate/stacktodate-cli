@@ -8,10 +8,10 @@ jobs:
   sync-stacktodate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Download stacktodate binary
         run: |
-          VERSION="latest"
-          curl -sL https://github.com/stacktodate/stacktodate-cli/releases/download/${VERSION}/stacktodate-linux-amd64 -o stacktodate
+          curl -L https://github.com/stacktodate/stacktodate-cli/releases/latest/download/stacktodate_linux_amd64.tar.gz | tar xz
           chmod +x stacktodate
 
       - name: Check stacktodate config
