@@ -1,0 +1,6 @@
+uuid: 1fe0b376-1df7-4848-bf2d-525acdce6b82
+name: stacktodate-cli
+stack:
+    go:
+        version: "1.25"
+        source: go.mod
