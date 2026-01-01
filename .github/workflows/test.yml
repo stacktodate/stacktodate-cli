@@ -26,3 +26,9 @@ jobs:
 
     - name: Run tests
       run: go test -v ./...
+
+    - name: Build stacktodate
+      run: go build -o stacktodate
+
+    - name: Check stacktodate config
+      run: ./stacktodate check

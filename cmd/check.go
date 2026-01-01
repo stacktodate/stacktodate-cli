@@ -44,6 +44,11 @@ var checkCmd = &cobra.Command{
 	Short: "Check if detected versions match stacktodate.yml",
 	Long:  `Verify that the versions in stacktodate.yml match the currently detected versions in your project. Useful for CI/CD pipelines.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Use default config file if not specified
+		if checkConfigFile == "" {
+			checkConfigFile = "stacktodate.yml"
+		}
+
 		// Load config without requiring UUID
 		config, err := helpers.LoadConfig(checkConfigFile)
 		if err != nil {
@@ -53,11 +58,7 @@ var checkCmd = &cobra.Command{
 		// Resolve absolute path for directory management
 		absConfigPath, err := helpers.ResolveAbsPath(checkConfigFile)
 		if err != nil {
-			if checkConfigFile == "" {
-				absConfigPath, _ = helpers.ResolveAbsPath("stacktodate.yml")
-			} else {
-				helpers.ExitOnError(err, "failed to resolve config path")
-			}
+			helpers.ExitOnError(err, "failed to resolve config path")
 		}
 
 		// Get config directory
