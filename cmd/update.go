@@ -87,6 +87,7 @@ var updateCmd = &cobra.Command{
 var updateConfigFile string
 
 func init() {
+    rootCmd.AddCommand(updateCmd)
     // Flags for update command
     updateCmd.Flags().StringVarP(&updateConfigFile, "config", "c", "stacktodate.yml", "Path to stacktodate.yml config file (default: stacktodate.yml)")
     updateCmd.Flags().BoolVar(&skipAutodetect, "skip-autodetect", false, "Skip autodetection of project technologies")

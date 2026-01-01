@@ -1,0 +1,23 @@
+name: Sync Stack To Date
+
+on:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  sync-stacktodate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download stacktodate binary
+        run: |
+          VERSION="latest"
+          curl -sL https://github.com/stacktodate/stacktodate-cli/releases/download/${VERSION}/stacktodate-linux-amd64 -o stacktodate
+          chmod +x stacktodate
+
+      - name: Check stacktodate config
+        run: ./stacktodate check
+
+      - name: Push stacktodate config
+        run: ./stacktodate push
+        env:
+          STD_TOKEN: ${{ secrets.STD_TOKEN }}
