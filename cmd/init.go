@@ -25,6 +25,20 @@ var initCmd = &cobra.Command{
 	Long:  `Initialize a new project with default configuration`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		reader := bufio.NewReader(os.Stdin)
+
+		// Check if token is configured, prompt if not
+		token, err := helpers.GetToken()
+		if err != nil {
+			fmt.Println("Authentication token not configured.")
+			fmt.Print("Would you like to set one up now? (y/n): ")
+			response, _ := reader.ReadString('\n')
+			if strings.TrimSpace(strings.ToLower(response)) == "y" {
+				fmt.Println("\nRun: stacktodate global-config set")
+				return
+			}
+		}
+
 		// Determine target directory
 		targetDir := "."
 		if len(args) > 0 {
@@ -32,8 +46,6 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Initializing project in: %s\n", targetDir)
-
-		reader := bufio.NewReader(os.Stdin)
 
 		// Detect project information in target directory
 		var detectedTechs map[string]helpers.StackEntry
@@ -49,24 +61,50 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Get UUID
-		if uuid == "" {
-			fmt.Print("Enter UUID: ")
-			input, _ := reader.ReadString('\n')
-			uuid = strings.TrimSpace(input)
-		}
+		// NEW: Menu-based project selection (create new or link existing)
+		var projUUID, projName string
+		if uuid == "" && name == "" {
+			// Interactive mode: prompt user for choice
+			choice := promptProjectChoice(reader)
 
-		// Get Name
-		if name == "" {
-			fmt.Print("Enter name: ")
-			input, _ := reader.ReadString('\n')
-			name = strings.TrimSpace(input)
+			if choice == 1 {
+				// Create new project on API
+				var createErr error
+				projUUID, projName, createErr = createNewProject(reader, detectedTechs, token)
+				if createErr != nil {
+					helpers.ExitOnError(createErr, "failed to create project")
+				}
+			} else {
+				// Link to existing project on API
+				var linkErr error
+				projUUID, projName, linkErr = linkExistingProject(reader, token)
+				if linkErr != nil {
+					helpers.ExitOnError(linkErr, "failed to link project")
+				}
+			}
+		} else {
+			// Non-interactive mode: use provided flags or fallback to old prompts
+			if uuid == "" {
+				fmt.Print("Enter UUID: ")
+				input, _ := reader.ReadString('\n')
+				projUUID = strings.TrimSpace(input)
+			} else {
+				projUUID = uuid
+			}
+
+			if name == "" {
+				fmt.Print("Enter name: ")
+				input, _ := reader.ReadString('\n')
+				projName = strings.TrimSpace(input)
+			} else {
+				projName = name
+			}
 		}
 
 		// Create config
 		config := helpers.Config{
-			UUID:  uuid,
-			Name:  name,
+			UUID:  projUUID,
+			Name:  projName,
 			Stack: detectedTechs,
 		}
 
@@ -84,8 +122,8 @@ var initCmd = &cobra.Command{
 
 		fmt.Println("\nProject initialized successfully!")
 		fmt.Println("Created stacktodate.yml with:")
-		fmt.Printf("  UUID: %s\n", uuid)
-		fmt.Printf("  Name: %s\n", name)
+		fmt.Printf("  UUID: %s\n", projUUID)
+		fmt.Printf("  Name: %s\n", projName)
 		if len(detectedTechs) > 0 {
 			fmt.Println("  Stack:")
 			for tech, entry := range detectedTechs {
@@ -93,6 +131,85 @@ var initCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// promptProjectChoice displays a menu for choosing between creating a new project or linking an existing one
+func promptProjectChoice(reader *bufio.Reader) int {
+	for {
+		fmt.Println("\nDo you want to:")
+		fmt.Println("  1) Create a new project on StackToDate")
+		fmt.Println("  2) Link to an existing project")
+		fmt.Print("\nEnter your choice (1 or 2): ")
+
+		input, _ := reader.ReadString('\n')
+		choice := strings.TrimSpace(input)
+
+		if choice == "1" {
+			return 1
+		} else if choice == "2" {
+			return 2
+		}
+
+		fmt.Println("Invalid choice. Please enter 1 or 2.")
+	}
+}
+
+// createNewProject prompts for project name and creates a new project via API
+func createNewProject(reader *bufio.Reader, detectedTechs map[string]helpers.StackEntry, token string) (uuid, projName string, err error) {
+	fmt.Print("\nEnter project name: ")
+	input, _ := reader.ReadString('\n')
+	projName = strings.TrimSpace(input)
+
+	if projName == "" {
+		return "", "", fmt.Errorf("project name cannot be empty")
+	}
+
+	// Convert detected technologies to API components
+	components := helpers.ConvertStackToComponents(detectedTechs)
+
+	if len(components) == 0 {
+		fmt.Println("⚠️  Warning: No technologies detected")
+		fmt.Println("You can add them later by editing stacktodate.yml and running 'stacktodate push'")
+	}
+
+	fmt.Println("\nCreating project on StackToDate...")
+
+	// Call API to create project
+	response, err := helpers.CreateTechStack(token, projName, components)
+	if err != nil {
+		return "", "", err
+	}
+
+	uuid = response.TechStack.ID
+	fmt.Println("✓ Project created successfully!")
+	fmt.Printf("  UUID: %s\n", uuid)
+	fmt.Printf("  Name: %s\n\n", projName)
+
+	return uuid, projName, nil
+}
+
+// linkExistingProject prompts for UUID and links to an existing project via API
+func linkExistingProject(reader *bufio.Reader, token string) (projUUID, projName string, err error) {
+	fmt.Print("\nEnter project UUID: ")
+	input, _ := reader.ReadString('\n')
+	projUUID = strings.TrimSpace(input)
+
+	if projUUID == "" {
+		return "", "", fmt.Errorf("UUID cannot be empty")
+	}
+
+	fmt.Println("\nValidating project UUID...")
+
+	// Call API to fetch project details
+	response, err := helpers.GetTechStack(token, projUUID)
+	if err != nil {
+		return "", "", err
+	}
+
+	projName = response.TechStack.Name
+	fmt.Printf("✓ Linked to existing project: %s\n\n", projName)
+
+	return projUUID, projName, nil
 }
 
 // selectCandidates allows user to select from detected candidates

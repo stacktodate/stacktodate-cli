@@ -16,22 +16,17 @@ var (
 	configFile string
 )
 
-type Component struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
 type PushRequest struct {
-	Components []Component `json:"components"`
+	Components []helpers.Component `json:"components"`
 }
 
 type PushResponse struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
 	TechStack struct {
-		ID         string        `json:"id"`
-		Name       string        `json:"name"`
-		Components []Component   `json:"components"`
+		ID         string               `json:"id"`
+		Name       string               `json:"name"`
+		Components []helpers.Component  `json:"components"`
 	} `json:"tech_stack"`
 }
 
@@ -46,8 +41,8 @@ var pushCmd = &cobra.Command{
 			helpers.ExitOnError(err, "failed to load config")
 		}
 
-		// Get token from environment
-		token, err := helpers.GetEnvRequired("STD_TOKEN")
+		// Get token from credentials (env var, keychain, or file)
+		token, err := helpers.GetToken()
 		if err != nil {
 			helpers.ExitOnError(err, "")
 		}
@@ -56,7 +51,7 @@ var pushCmd = &cobra.Command{
 		apiURL := cache.GetAPIURL()
 
 		// Convert stack to components
-		components := convertStackToComponents(config.Stack)
+		components := helpers.ConvertStackToComponents(config.Stack)
 
 		// Create request
 		request := PushRequest{
@@ -70,19 +65,6 @@ var pushCmd = &cobra.Command{
 
 		fmt.Printf("✓ Successfully pushed %d components\n", len(components))
 	},
-}
-
-func convertStackToComponents(stack map[string]helpers.StackEntry) []Component {
-	var components []Component
-
-	for name, entry := range stack {
-		components = append(components, Component{
-			Name:    name,
-			Version: entry.Version,
-		})
-	}
-
-	return components
 }
 
 func pushToAPI(apiURL, techStackID, token string, request PushRequest) error {

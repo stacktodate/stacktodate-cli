@@ -32,6 +32,7 @@ build/
 
 # Application binary
 stacktodate
+stacktodate-cli
 
 # Claude Code
 .claude/
