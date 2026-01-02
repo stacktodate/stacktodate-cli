@@ -46,8 +46,8 @@ var pushCmd = &cobra.Command{
 			helpers.ExitOnError(err, "failed to load config")
 		}
 
-		// Get token from environment
-		token, err := helpers.GetEnvRequired("STD_TOKEN")
+		// Get token from credentials (env var, keychain, or file)
+		token, err := helpers.GetToken()
 		if err != nil {
 			helpers.ExitOnError(err, "")
 		}

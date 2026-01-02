@@ -25,6 +25,20 @@ var initCmd = &cobra.Command{
 	Long:  `Initialize a new project with default configuration`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		reader := bufio.NewReader(os.Stdin)
+
+		// Check if token is configured, prompt if not
+		_, err := helpers.GetToken()
+		if err != nil {
+			fmt.Println("Authentication token not configured.")
+			fmt.Print("Would you like to set one up now? (y/n): ")
+			response, _ := reader.ReadString('\n')
+			if strings.TrimSpace(strings.ToLower(response)) == "y" {
+				fmt.Println("\nRun: stacktodate global-config set")
+				return
+			}
+		}
+
 		// Determine target directory
 		targetDir := "."
 		if len(args) > 0 {
@@ -32,8 +46,6 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Initializing project in: %s\n", targetDir)
-
-		reader := bufio.NewReader(os.Stdin)
 
 		// Detect project information in target directory
 		var detectedTechs map[string]helpers.StackEntry

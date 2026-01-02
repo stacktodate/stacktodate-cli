@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/stacktodate/stacktodate-cli/cmd/globalconfig"
 	"github.com/stacktodate/stacktodate-cli/cmd/helpers"
 	"github.com/stacktodate/stacktodate-cli/cmd/lib/versioncheck"
 	"github.com/stacktodate/stacktodate-cli/internal/version"
@@ -42,6 +43,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(autodetectCmd)
+	rootCmd.AddCommand(globalconfig.GlobalConfigCmd)
 }
 
 // shouldAutoCheck determines if a command should trigger automatic version checks
